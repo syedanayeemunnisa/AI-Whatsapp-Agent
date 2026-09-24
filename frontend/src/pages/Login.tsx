@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
-import { api } from '../lib/api'
+import { ApiError, api } from '../lib/api'
 import { Button, ErrorNote, Field, inputClass } from '../components/ui'
 
 export default function Login() {
@@ -12,14 +12,24 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [statusError, setStatusError] = useState('')
   const [busy, setBusy] = useState(false)
 
-  // If no account exists yet, the app is in first-run mode
+  // If no account exists yet, the app is in first-run mode. Only trust an
+  // explicit { bootstrapped: boolean } — a 200 HTML page (e.g. requests
+  // hitting the static host because VITE_API_BASE is unset) must NOT be
+  // mistaken for "no admin yet", or users would create a second account.
   useEffect(() => {
     api
       .get<{ bootstrapped: boolean }>('/api/auth/status')
-      .then((s) => setMode(s.bootstrapped ? 'login' : 'bootstrap'))
-      .catch(() => setMode('login'))
+      .then((s) => {
+        if (typeof s?.bootstrapped === 'boolean') setMode(s.bootstrapped ? 'login' : 'bootstrap')
+        else setStatusError('The server gave an unexpected response — check the deployed API configuration.')
+      })
+      .catch((err) => {
+        setMode('login')
+        setStatusError(err instanceof ApiError ? err.message : 'Cannot reach the backend to check the account status.')
+      })
   }, [])
 
   useEffect(() => {
@@ -49,6 +59,7 @@ export default function Login() {
         </div>
         <form onSubmit={submit} className="space-y-4 rounded-xl bg-white p-6 shadow-lg">
           <h1 className="text-lg font-semibold">{mode === 'bootstrap' ? 'Create admin account' : 'Log in'}</h1>
+          {statusError && <ErrorNote message={statusError} />}
           {error && <ErrorNote message={error} />}
           {mode === 'bootstrap' && (
             <Field label="Name">
