@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+
+# Runtime state (real DB / WhatsApp session / backups live in %LOCALAPPDATA%)
+backend/data/
+backend/.wwebjs_cache/
+*.sqlite
+*.sqlite-journal
+*.db
+
+# Build output
+frontend/dist/
+dist-ssr/
+
+# Logs
+*.log
+logs/
+
+# Tooling / OS
+.freebuff/
+.DS_Store
+Thumbs.db

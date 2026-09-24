@@ -1,0 +1,71 @@
+### Phase 1 POC requests (VS Code REST Client / IntelliJ HTTP client)
+### Base: http://localhost:4000
+
+GET http://localhost:4000/
+
+###
+
+GET http://localhost:4000/api/health
+
+###
+
+GET http://localhost:4000/api/health/ping
+
+###
+
+GET http://localhost:4000/api/ollama/status
+
+###
+
+GET http://localhost:4000/api/ollama/models
+
+###
+
+POST http://localhost:4000/api/content/generate
+Content-Type: application/json
+
+{
+  "topic": "SQL Window Functions",
+  "audience": "Data Analytics Students",
+  "contentType": "Daily Tip",
+  "tone": "Friendly and Educational",
+  "language": "English"
+}
+
+###
+
+### Same topic again → expect 409 DUPLICATE_TOPIC (add "bypassDuplicate": true to force)
+POST http://localhost:4000/api/content/generate
+Content-Type: application/json
+
+{
+  "topic": "Power BI vs Excel",
+  "audience": "Working Professionals",
+  "contentType": "Educational Post"
+}
+
+###
+
+GET http://localhost:4000/api/content?limit=10
+
+###
+
+### Edit content (never blocked) — replace id
+PUT http://localhost:4000/api/content/1
+Content-Type: application/json
+
+{
+  "content": "📚 *SQL Tip of the Day*\n\nROW_NUMBER() assigns a unique number to each row within a group..."
+}
+
+###
+
+POST http://localhost:4000/api/content/1/approve
+
+###
+
+POST http://localhost:4000/api/content/1/regenerate
+
+###
+
+DELETE http://localhost:4000/api/content/1
