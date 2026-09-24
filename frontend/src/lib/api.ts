@@ -5,8 +5,11 @@
  * - Base URL: '' in dev (Vite proxy), backend origin in production
  */
 
-export const API_BASE: string =
-  import.meta.env.VITE_API_BASE ?? ''; // '' → same-origin/proxy
+// Trim whitespace and trailing slashes: a stray space (e.g. pasted with the
+// URL) or a trailing "/" makes every fetch() URL invalid → "Cannot reach the
+// local server" errors that are impossible to debug from the UI.
+const RAW_API_BASE: string = import.meta.env.VITE_API_BASE ?? '';
+export const API_BASE: string = RAW_API_BASE.trim().replace(/\/+$/, '');
 
 const TOKEN_KEY = 'awa_token';
 const USER_KEY = 'awa_user';
