@@ -122,9 +122,13 @@ async function runScheduleJob(schedule, { scheduledAt = null } = {}) {
     return { status: 'failed', reason: 'no_topic_available' };
   }
 
-  // Duplicate prevention first — never spend CPU regenerating repeats (task §25)
+  // Duplicate prevention first — never spend CPU regenerating repeats (task §25).
+  // Exception: when the topic came from the content-type fallback (empty topic
+  // pool), dedupe would block the schedule for the whole 7-day window and it
+  // could never fire at all. The prompt already excludes recent topics, so let
+  // fallback-topic runs generate a fresh angle instead of skipping.
   const dup = agent.isDuplicate(topic, groupId);
-  if (dup.duplicate) {
+  if (dup.duplicate && picked.source !== 'fallback') {
     addLog({ groupId, status: 'skipped_duplicate', error: `topic used recently (content ${dup.previousId})`, scheduledAt });
     return { status: 'skipped_duplicate', previousId: dup.previousId };
   }

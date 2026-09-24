@@ -98,6 +98,15 @@ async function start() {
       logger.info(`API listening on http://${config.host}:${config.port}`);
       // Phase 3: start the minute-by-minute automation scheduler with the API
       require('./scheduler').start();
+      // Auto-restore the WhatsApp session if one is saved on disk, so the
+      // scheduler can send after an unattended restart. With no saved session
+      // this is a no-op (first run still needs a manual QR scan).
+      if (require('./whatsapp/client').currentState().sessionSaved) {
+        require('./whatsapp/client')
+          .connect()
+          .then(() => logger.info('WhatsApp session restored automatically'))
+          .catch((err) => logger.warn({ err: err.message }, 'Automatic WhatsApp reconnect failed — use Connect on the WhatsApp page'));
+      }
       // Phase 5: daily DB backup at 03:30 local (plus boot-time check that today's exists)
       const backupService = require('./services/backupService');
       try { backupService.runBackup(); } catch (err) { logger.warn({ err: err.message }, 'Boot backup failed'); }

@@ -12,10 +12,22 @@ const db = require('../db');
 const config = require('../config');
 const logger = require('../logger');
 const { resolveGroupChat } = require('./groups');
+const waClient = require('./client');
 const { AppError } = require('../util');
 
 let lastSendAt = 0;
 let sendTimestamps = []; // for hourly cap
+
+/**
+ * Puppeteer errors that mean the underlying browser page is gone even though
+ * the client still reports "connected" (zombie session). On these we reset
+ * the client and reconnect once, instead of burning retries forever.
+ */
+function isFatalSessionError(err) {
+  return /detached frame|execution context destroyed|target closed|session closed|page closed|protocol error/i.test(
+    String(err?.message || '')
+  );
+}
 
 function getSetting(key, fallback) {
   try {
@@ -61,6 +73,8 @@ async function throttle() {
 
 /**
  * Send a text message to a group. Returns { messageId, chatId, sentAt }.
+ * Self-healing: if the send fails because the browser session is a zombie
+ * ("detached Frame" etc.), reset the client, reconnect once and retry.
  */
 async function sendToGroup(chatId, text) {
   assertEmergencyStopOff();
@@ -68,6 +82,18 @@ async function sendToGroup(chatId, text) {
     throw new AppError(400, 'EMPTY_MESSAGE', 'Message text is empty.');
   }
 
+  try {
+    return await deliver(chatId, text);
+  } catch (err) {
+    if (!isFatalSessionError(err)) throw err;
+    logger.warn({ err: err.message }, 'WhatsApp session died mid-flight despite "connected" — reconnecting once and retrying');
+    waClient.resetAfterCrash();
+    await waClient.connect();
+    return await deliver(chatId, text);
+  }
+}
+
+async function deliver(chatId, text) {
   const chat = await resolveGroupChat(chatId); // throws WA_NOT_CONNECTED / NOT_A_GROUP
   await throttle();
 

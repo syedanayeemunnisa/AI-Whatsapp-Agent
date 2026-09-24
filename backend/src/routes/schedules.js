@@ -41,6 +41,21 @@ router.post('/', asyncWrap(async (req, res) => {
   const group = db.get().prepare('SELECT id FROM whatsapp_groups WHERE id = ?').get(groupId);
   if (!group) throw new AppError(404, 'GROUP_NOT_FOUND', `Group ${groupId} not configured.`);
 
+  // Guard against accidental exact duplicates (same group + time + type + topic),
+  // e.g. clicking "Add schedule" three times — each copy would fire separately.
+  const dupe = db
+    .get()
+    .prepare(
+      `SELECT id FROM schedules
+       WHERE group_id = ? AND posting_time = ? AND content_type = ?
+         AND COALESCE(topic, '') = COALESCE(?, '') AND frequency = ?
+         AND COALESCE(day_of_week, -1) = COALESCE(?, -1) AND enabled = 1`
+    )
+    .get(groupId, postingTime, contentType, topic ?? null, frequency, frequency === 'weekly' ? Number(dayOfWeek) : null);
+  if (dupe) {
+    throw new AppError(409, 'DUPLICATE_SCHEDULE', `An identical schedule (id ${dupe.id}) already exists for this group, time and content type.`);
+  }
+
   const info = db
     .get()
     .prepare(
