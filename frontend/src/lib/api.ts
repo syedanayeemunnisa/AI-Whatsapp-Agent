@@ -11,6 +11,23 @@
 const RAW_API_BASE: string = import.meta.env.VITE_API_BASE ?? '';
 export const API_BASE: string = RAW_API_BASE.trim().replace(/\/+$/, '');
 
+function networkErrorMessage(aborted: boolean): string {
+  if (aborted) return 'The server took too long to respond.';
+  const base = RAW_API_BASE.trim();
+  if (!base) {
+    // Deployed without an API base: every request goes to the static host
+    // itself and comes back as 404/405. Tell the operator exactly what to fix.
+    return (
+      'API address is not configured in this deployment. ' +
+      'Set VITE_API_BASE under Settings → Environment variables (Production) ' +
+      'in Cloudflare Pages, then retry the deployment.'
+    );
+  }
+  return import.meta.env.DEV
+    ? 'Cannot reach the local server. Is it running?'
+    : `Cannot reach the backend at ${base}. Is cloudflared running, and is the tunnel URL still current?`;
+}
+
 const TOKEN_KEY = 'awa_token';
 const USER_KEY = 'awa_user';
 
@@ -69,9 +86,7 @@ async function request<T>(method: string, path: string, body?: unknown, timeoutM
     throw new ApiError(
       0,
       aborted ? 'TIMEOUT' : 'NETWORK_ERROR',
-      aborted
-        ? 'The local server took too long to respond.'
-        : 'Cannot reach the local server. Is it running?'
+      networkErrorMessage(aborted)
     );
   }
   clearTimeout(timer);
@@ -87,6 +102,11 @@ async function request<T>(method: string, path: string, body?: unknown, timeoutM
 
   if (!res.ok) {
     const err = (isJson && (data as { error?: { code?: string; message?: string; details?: unknown } }).error) || {};
+    // A 404/405 with no JSON body on a static host usually means requests are
+    // hitting the SPA host itself because VITE_API_BASE was never set.
+    if (!isJson && !API_BASE && (res.status === 404 || res.status === 405)) {
+      throw new ApiError(res.status, 'MISCONFIGURED', networkErrorMessage(false));
+    }
     throw new ApiError(res.status, err.code || 'HTTP_ERROR', err.message || `HTTP ${res.status}`, err.details);
   }
   return data as T;
