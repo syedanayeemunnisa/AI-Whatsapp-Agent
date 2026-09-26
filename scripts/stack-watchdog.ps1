@@ -94,7 +94,7 @@ function Update-UrlInRepo($url) {
   if ($current -match 'VITE_API_BASE=(\S+)') { $old = $Matches[1] } else { $old = '' }
   if ($old -eq $url) { return $false }
   Log "URL changed: '$old' -> '$url' - updating repo"
-  Set-Content -Path $EnvFile -Value "# Production build configuration (baked into the bundle at build time).`r`n# AUTO-UPDATED by scripts/stack-watchdog.ps1 - trycloudflare URLs rotate on restart.`r`nVITE_API_BASE=$url`r`n" -Encoding ASCII
+  Set-Content -Path $EnvFile -Value "# Production build configuration (baked into the bundle at build time).`r`n# AUTO-UPDATED by scripts/stack-watchdog.ps1 - trycloudflare URLs rotate on restart.`r`n# NOTE: rotation commits must NOT contain [skip ci] or Pages never deploys the new URL.`r`nVITE_API_BASE=$url`r`n" -Encoding ASCII
   Push-Location $Repo
   try {
     git add frontend/.env.production 2>&1 | Out-Null
