@@ -98,7 +98,7 @@ function Update-UrlInRepo($url) {
   Push-Location $Repo
   try {
     git add frontend/.env.production 2>&1 | Out-Null
-    git commit -m "chore: rotate tunnel URL to $url [skip ci] (auto by watchdog)" 2>&1 | Out-Null
+    git commit -m "chore: rotate tunnel URL to $url (auto by watchdog)" 2>&1 | Out-Null
     $pushed = $false
     for ($i = 0; $i -lt 3; $i++) {
       git pull --rebase origin main 2>&1 | Out-Null
